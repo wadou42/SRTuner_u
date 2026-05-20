@@ -1,0 +1,69 @@
+# for all
+-fno-stack-protector-all
+-fno-stack-protector-explicit
+-fno-stack-protector-strong
+-gstatement-fno-rontiers
+-fno-no-threadsafe-statics
+-fno-toplevel-reorder -fsection-anchors
+
+-fno-exceptions
+-fno-rtti
+-fsingle-precision-constant
+-fpack-struct
+# build success, but couldn't run
+-fno-non-call-exceptions
+-fno-inline-atomics
+-ffloat-store
+
+# acc
+-fno-optimize-sibling-calls
+-fno-inline
+-fno-inline
+-fno-tree-ch
+-fsimdmath
+-fno-tree-vectorize
+-fno-tree-loop-vectorize
+-fno-tree-loop-optimize
+
+
+-fschedule-insns2 -fselective-scheduling2 -gstatement-frontiers
+-fschedule-insns -fselective-scheduling -fsignaling-nans -gstatement-frontiers
+-fno-reg-struct-return -fno-toplevel-reorder -fnon-call-exceptions
+
+-fsel-sched-pipelining -fselective-scheduling2 -gstatement-frontiers
+
+-ftree-parallelize-loops=16
+-ftree-parallelize-loops=32
+-ftree-parallelize-loops=64
+-ftree-parallelize-loops=128
+-ftree-parallelize-loops=160
+-fexcess-precision=standard
+
+
+# scann
+-fno-live-patching
+
+# -flive-patching conflicts with -fipa-* options
+-fipa-stack-alignment
+-fipa-strict-aliasing
+-fipa-modref
+-fipa-profile
+-fipa-pure-const
+-fipa-reference
+-fipa-reference-addressable
+-fipa-bit-cp
+-fipa-cp
+-fipa-icf
+-fipa-icf-functions
+-fipa-icf-variables
+-fipa-ra
+-fipa-sra
+-fipa-vrp
+-fipa-cp-clone
+-fipa-ic
+-fipa-prefetch
+-fipa-pta
+-fipa-reorder-fields
+-fipa-struct-reorg
+-fselective-scheduling2 -fno-shrink-wrap
+-fvect-cost-model=very-cheap

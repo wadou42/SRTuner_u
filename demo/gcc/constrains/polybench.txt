@@ -1,0 +1,8 @@
+# for all
+-fno-stack-protector-all
+-fno-stack-protector-explicit
+-fno-stack-protector-strong
+-gstatement-fno-rontiers
+-fno-no-threadsafe-statics
+
+-fsection-anchors -fno-toplevel-reorder

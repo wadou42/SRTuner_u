@@ -1,0 +1,23 @@
+# for all
+-fno-stack-protector-all
+-fno-stack-protector-explicit
+-fno-stack-protector-strong
+-gstatement-fno-rontiers
+-fno-no-threadsafe-statics
+
+# for rocksdb
+-fpack-struct
+-fsingle-precision-constant
+-fno-inline-atomics
+-fno-call-exceptions
+-fno-exceptions
+-fno-reg-struct-return
+
+-fno-inline
+
+
+-fselective-scheduling -gstatement-frontiers
+-fsel-sched-pipelining -fselective-scheduling2 -fvar-tracking-assignments-toggle
+-fno-guess-branch-probability -fno-inline -fselective-scheduling2 -fstack-protector-all
+-fno-branch-count-reg -fno-move-loop-invariants -fno-unswitch-loops -fmodulo-sched -freorder-blocks-and-partition
+-frerun-cse-after-loop -fschedule-insns -fselective-scheduling -funroll-all-loops -fvar-tracking-assignments-toggle

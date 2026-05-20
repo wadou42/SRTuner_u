@@ -1,0 +1,71 @@
+# for all
+-fno-stack-protector-all
+-fno-stack-protector-explicit
+-fno-stack-protector-strong
+-gstatement-fno-rontiers 
+-fno-no-threadsafe-statics
+-fno-toplevel-reorder -fsection-anchors
+
+-finline-atomics
+-frtti
+-fpack-struct
+-ftracer
+-funroll-completely-grow-size
+-fstrict-enums
+-fsingle-precision-constant
+-fsimdmath
+-freorder-blocks-and-partition
+-fno-unroll-completely-grow-size
+-fsplit-ldp-stp
+-fipa-pta
+# -fselective-scheduling2 -fvar-tracking-assignments-toggle
+# -fsel-sched-pipelining -fselective-scheduling -fselective-scheduling2
+# -fselective-scheduling -fvar-tracking-assignments
+-fselective-scheduling2
+-fselective-scheduling
+-fnothrow-opt
+-fno-tree-sra
+-fnon-call-exceptions
+-fno-strict-enums
+-fno-threadsafe-statics
+-fthreadsafe-statics
+-fno-tree-fre
+-fno-tree-forwprop
+-fsignaling-nans -funsafe-math-optimizations
+-fno-tree-dce -fno-tree-dse
+-fno-tree-ch -fno-tree-dominator-opts
+-fno-rtti
+-fno-nothrow-opt
+-fno-non-call-exceptions
+# -fsel-sched-pipelining -fselective-scheduling2 -funroll-loops
+-fno-inline-atomics
+-fno-reg-struct-return
+-fno-inline
+-fno-fold-simple-inlines
+-fno-thread-jumps
+-fno-guess-branch-probability
+-fno-expensive-optimizations
+-fno-exceptions
+-ffold-simple-inlines
+-fno-tree-loop-distribute-patterns -fno-tree-pre
+-fno-tree-dominator-opts -fno-tree-loop-distribute-patterns -fno-tree-partial-pre
+-fno-devirtualize
+# -fselective-scheduling2 -ftrapv -funsafe-math-optimizations
+-fdelayed-branch
+-fbranch-probabilities
+-fno-early-inlining
+-fno-ipa-modref -fno-partial-inlining -fno-tree-vrp
+-fno-ipa-pure-const -fno-partial-inlining -fno-tree-vrp
+# -fselective-scheduling2 -ftrapv -funsafe-math-optimizations -ftree-slp-transpose-vectorize
+-fno-tree-slp-transpose-vectorize
+-ftree-slp-transpose-vectorize
+-floop-crc
+# -fselective-scheduling2 -fvar-tracking-assignments
+-fno-loop-crc
+# -fselective-scheduling2 -ftrapv -funsafe-math-optimizations -fno-tree-slp-transpose-vectorize
+# -fselective-scheduling -fvar-tracking-assignments-toggle
+-fno-tree-cselim -fno-tree-loop-distribute-patterns -fno-tree-partial-pre -fno-tree-sink
+-fno-finite-loops -fno-partial-inlining -fno-tree-vrp
+-fno-tree-cselim -fno-tree-dominator-opts -fno-tree-loop-distribute-patterns -fno-tree-sink
+-fno-tree-dce -fno-tree-dominator-opts -fno-tree-loop-distribute-patterns
+-fassociative-math

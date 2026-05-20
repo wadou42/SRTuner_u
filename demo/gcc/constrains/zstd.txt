@@ -1,0 +1,7 @@
+-fno-tree-pta
+-fipa-pta
+-fsection-anchors -fno-toplevel-reorder
+-fno-tree-ch
+-fno-tree-coalesce-vars 
+-fno-tree-sink
+-fno-tree-pta

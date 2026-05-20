@@ -1,0 +1,172 @@
+# O1
+-fcombine-stack-adjustments
+-fcompare-elim
+-fcprop-registers
+-fdefer-pop
+-fdse
+-fforward-propagate
+-fguess-branch-probability
+-fif-conversion
+-fif-conversion2
+-finline
+-finline-functions-called-once
+-fipa-modref
+-fipa-profile
+-fipa-pure-const
+-fipa-reference
+-fipa-reference-addressable
+-fmove-loop-invariants
+-fmove-loop-stores
+-freorder-blocks
+-fsection-anchors
+-fshrink-wrap
+-fsplit-wide-types
+-fssa-phiopt
+-fthread-jumps
+-ftoplevel-reorder
+-ftree-bit-ccp
+-ftree-ccp
+-ftree-ch
+-ftree-coalesce-vars
+-ftree-dominator-opts
+-ftree-pta
+-ftree-sink
+-ftree-sra
+-ftree-ter
+
+# O2
+-fcaller-saves
+-fcode-hoisting
+-fcrossjumping
+-fcse-follow-jumps
+-fdevirtualize
+-fdevirtualize-speculatively
+-fexpensive-optimizations
+-fgcse
+-fhoist-adjacent-loads
+-findirect-inlining
+-finline-functions
+-finline-small-functions
+-fipa-bit-cp
+-fipa-cp
+-fipa-icf
+-fipa-icf-functions
+-fipa-icf-variables
+-fipa-ra
+-fipa-sra
+-fisolate-erroneous-paths-dereference
+-flra-remat
+-foptimize-strlen
+-fpartial-inlining
+-fpeephole2
+-free
+-freorder-functions
+-frerun-cse-after-loop
+-fschedule-insns
+-fschedule-insns2
+-fstrict-aliasing
+-ftree-loop-distribute-patterns
+-ftree-loop-vectorize
+-ftree-pre
+-ftree-slp-vectorize
+-ftree-switch-conversion
+-ftree-tail-merge
+-ftree-vrp
+
+# O3
+-fgcse-after-reload
+-fipa-cp-clone
+-floop-interchange
+-floop-unroll-and-jam
+-fpeel-loops
+-fpredictive-commoning
+-fsplit-loops
+-fsplit-paths
+-ftree-loop-distribution
+-ftree-partial-pre
+-funroll-completely-grow-size
+-funswitch-loops
+-fversion-loops-for-strides
+
+# others
+-fallow-store-data-races
+-fassociative-math
+-fbranch-probabilities
+-fcrypto-accel-aes
+-fdelayed-branch
+-ffast-math
+-ffinite-math-only
+-ffloat-store
+-ffold-simple-inlines
+-fftz
+-fgcse-las
+-fgcse-sm
+-fgraphite
+-fgraphite-identity
+-ficp
+-ficp-speculatively
+-fif-conversion-gimple
+-fifcvt-allow-complicated-cmps
+-fipa-ic
+-fipa-prefetch
+-fipa-pta
+-fipa-reorder-fields
+-fira-loop-pressure
+-fisolate-erroneous-paths-attribute
+-floop-crc
+-floop-nest-optimize
+-floop-parallelize-all
+-fmodulo-sched
+-fmodulo-sched-allow-regmoves
+-fnothrow-opt
+-fprefetch-loop-arrays
+-freciprocal-math
+-frename-registers
+-freorder-blocks-and-partition
+-freschedule-modulo-scheduled-loops
+-fsched-spec-load
+-fsched-spec-load-dangerous
+-fsched-stalled-insns
+-fsched2-use-superblocks
+-fsel-sched-pipelining
+-fsel-sched-pipelining-outer-loops
+-fsel-sched-reschedule-pipelined
+-fselective-scheduling
+-fselective-scheduling2
+-fsimdmath
+-fsingle-precision-constant
+-fsplit-ldp-stp
+-fsplit-wide-types-early
+-ftracer
+-ftree-cselim
+-ftree-loop-if-convert
+-ftree-lrs
+-ftree-slp-transpose-vectorize
+-ftree-vectorize
+-funroll-all-loops
+-funroll-loops
+-funsafe-math-optimizations
+-fvariable-expansion-in-unroller
+-fvpt
+-fweb
+-mcmlt-arith
+-mlow-precision-div
+-mlow-precision-recip-sqrt
+-mlow-precision-sqrt
+-msimdmath-64
+
+# -falign-functions=,16,32
+# -falign-jumps=,4,8
+# -falign-loops=,8,16
+# -fexcess-precision=,fast,standard,16
+# -fexcess-precision=,fast,16
+# -ffp-contract=,on,fast
+# -fira-algorithm=,CB,priority
+# -fira-region=,one,all,mixed
+# -fp-model=,normal,fast,precise,except,strict
+# -freorder-blocks-algorithm=,simple,stc
+# -fsched-stalled-insns-dep=,4,8,16
+# -fsched-stalled-insns=,8,12,16
+# -fsimd-cost-model=,unlimited,dynamic,cheap,very-cheap
+# -fstack-reuse=,all,named_vars,none
+# -fvect-cost-model=,unlimited,dynamic,cheap,very-cheap

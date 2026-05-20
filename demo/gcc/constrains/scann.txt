@@ -1,0 +1,57 @@
+# for all
+-fno-stack-protector-all
+-fno-stack-protector-explicit
+-fno-stack-protector-strong
+-gstatement-fno-rontiers
+-fno-no-threadsafe-statics
+-fno-toplevel-reorder -fsection-anchors
+
+# for scann
+-fno-inline-atomics
+-fno-reg-struct-return
+
+# maybe wrong
+-fsingle-precision-constant
+-fpack-struct
+-fno-rtti
+-fno-live-patching
+
+# -flive-patching conflicts with -fipa-*， 经验公式
+-flive-patching -fipa-stack-alignment
+-flive-patching -fipa-strict-aliasing
+-flive-patching -fipa-modref
+-flive-patching -fipa-profile
+-flive-patching -fipa-pure-const
+-flive-patching -fipa-reference
+-flive-patching -fipa-reference-addressable
+-flive-patching -fipa-bit-cp
+-flive-patching -fipa-cp
+-flive-patching -fipa-icf
+-flive-patching -fipa-icf-functions
+-flive-patching -fipa-icf-variables
+-flive-patching -fipa-ra
+-flive-patching -fipa-sra
+-flive-patching -fipa-vrp
+-flive-patching -fipa-cp-clone
+-flive-patching -fipa-ic
+-flive-patching -fipa-prefetch
+-flive-patching -fipa-pta
+-flive-patching -fipa-reorder-fields
+-flive-patching -fipa-struct-reorg
+
+# 这三条存疑
+-fsel-sched-pipelining -fselective-scheduling2 -fwrapv-pointer -gstatement-frontiers
+-fsel-sched-pipelining -fselective-scheduling -gstatement-frontiers
+-fmodulo-sched -freorder-blocks-and-partition
+
+
+-ffinite-math-only
+
+-fno-tree-sink -fselective-scheduling -gstatement-frontiers
+-fno-inline-small-functions -fno-tree-forwprop
+-ffast-math
+-fsel-sched-pipelining -fselective-scheduling2 -gstatement-frontiers
+-fno-inline-small-functions -fno-tree-forwprop
+-fno-tree-ch -fselective-scheduling2 -funroll-all-loops -fwrapv -gstatement-frontiers
+ -fno-tree-ch -fno-tree-dce -fselective-scheduling2 -gstatement-frontiers
+ -fno-tree-ch -fno-tree-dce -fselective-scheduling2 -gstatement-frontiers
