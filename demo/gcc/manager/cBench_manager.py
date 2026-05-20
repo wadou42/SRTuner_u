@@ -7,17 +7,18 @@ import time
 FLOAT_MAX = float('inf')
 
 class cBenchManager:
-    def __init__(self, path, artifact='a.out', cpucore=319):
+    def __init__(self, path, artifact='a.out', cpucore=319, build_cpucore=None):
         self.path = Path(path)
         self.artifact = artifact
         self.benchmarks = []
         self.cpucore = cpucore
+        self.build_cpucore = build_cpucore if build_cpucore is not None else cpucore
         
     def build(self, opt_config):
         self.clean()
         commands = f"""cd {self.path};
-        taskset -c {self.cpucore} make clean > /dev/null 2>/dev/null;
-        taskset -c {self.cpucore} make -j2 CCC_OPTS_ADD="{opt_config}" LD_OPTS=" -o {self.artifact} -fopenmp" > /dev/null 2>/dev/null;
+        taskset -c {self.build_cpucore} make clean > /dev/null 2>/dev/null;
+        taskset -c {self.build_cpucore} make -j2 CCC_OPTS_ADD="{opt_config}" LD_OPTS=" -o {self.artifact} -fopenmp" > /dev/null 2>/dev/null;
         """
         subprocess.Popen(commands, stdout=subprocess.PIPE, shell=True).wait()
 
@@ -44,7 +45,7 @@ class cBenchManager:
             for out in stdouts:
                 if out.startswith("real"):
                     out = out.replace("real\t", "")
-                    nums = re.findall("\d*\.?\d+", out)
+                    nums = re.findall(r"\d*\.?\d+", out)
                     assert len(nums) == 2, "Expect %dm %ds format"
                     secs = float(nums[0])*60+float(nums[1])
                     tot += secs
@@ -52,7 +53,7 @@ class cBenchManager:
 
     def clean(self):
         commands = f"""cd {self.path};
-        taskset -c {self.cpucore} make clean > /dev/null 2>/dev/null;
+        taskset -c {self.build_cpucore} make clean > /dev/null 2>/dev/null;
         taskset -c {self.cpucore} ./_ccc_check_output.clean ;
         """
         subprocess.Popen(commands, stdout=subprocess.PIPE, shell=True).wait()

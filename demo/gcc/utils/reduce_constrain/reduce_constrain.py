@@ -156,6 +156,8 @@ class OptReducer:
         return 0
 
     def reduceFlags(self, optList):
+        max_reduce_rounds = 30
+        reduce_rounds = 0
         level = optList[0]
         del optList[0]
         start = 0
@@ -164,6 +166,14 @@ class OptReducer:
         end = len(optList) if start + step > len(optList) else start + step
         while step >= 1:
             while start < len(optList):
+                reduce_rounds += 1
+                if reduce_rounds > max_reduce_rounds:
+                    self._log(
+                        f"[reduceFlags] stop reduction after {max_reduce_rounds} rounds",
+                        flush=True,
+                    )
+                    optList.insert(0, level)
+                    return optList
                 self._log(
                     "[reduceFlags] [len="
                     + str(len(optList))
@@ -198,10 +208,20 @@ class OptReducer:
         return optList
 
     def reduceMore(self, optList):
+        max_reduce_rounds = 30
+        reduce_rounds = 0
         level = optList[0]
         del optList[0]
         inx = 0
         while inx < len(optList):
+            reduce_rounds += 1
+            if reduce_rounds > max_reduce_rounds:
+                self._log(
+                    f"[reduceMore] stop reduction after {max_reduce_rounds} rounds",
+                    flush=True,
+                )
+                optList.insert(0, level)
+                return optList
             self._log("[len=" + str(len(optList)) + ", inx=" + str(inx) + "]")
             self._log(optList)
 

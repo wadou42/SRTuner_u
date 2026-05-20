@@ -1,12 +1,18 @@
 import json
 import os
-import multiprocessing
+import queue
+import threading
+import traceback
 
 from tuner import FlagInfo, Evaluator, FLOAT_MAX
 from tuner import RandomTuner, SRTuner
 from manager.cBench_manager import cBenchManager
 from utils.reduce_constrain.constrain_solver import ConstrainsSolver
 from utils.reduce_constrain.reduce_constrain import OptReducer
+from utils.thread_log import ThreadTeeLogger
+
+NUM_SLOTS = 8
+CORES_PER_SLOT = 40
 
 # Define GCC flags
 class GCCFlagInfo(FlagInfo):
@@ -175,15 +181,45 @@ class cBenchEvaluator(Evaluator):
             self.manager_base.clean()
 
 
-def tune_benchmark(benchmark):
+def tune_benchmark(benchmark, slot_id):
+    log_file = os.path.join("tune_result", "logs", f"{benchmark}.log")
+    with ThreadTeeLogger(log_file, mode="w"):
+        try:
+            return _tune_benchmark(benchmark, slot_id)
+        except Exception:
+            print(traceback.format_exc(), flush=True)
+            raise
+
+
+def _tune_benchmark(benchmark, slot_id):
+    slot_first_core = slot_id * CORES_PER_SLOT
+    slot_last_core = slot_first_core + CORES_PER_SLOT - 1
+    slot_cores = f"{slot_first_core}-{slot_last_core}"
+    thread_name = threading.current_thread().name
+    print(
+        f"[{thread_name}] Start tuning {benchmark} on slot {slot_id} "
+        f"(cores {slot_cores}, cbench core {slot_first_core})",
+        flush=True,
+    )
+
     path_flag = os.path.join(benchmark_home, "cBench-instance0", benchmark, "src")
     path_base = os.path.join(benchmark_home, "cBench-instance1", benchmark, "src")
 
     path_flag = os.path.join(benchmark_home, "cbench-instance0", benchmark, "src")
     path_base = os.path.join(benchmark_home, "cbench-instance1", benchmark, "src")
 
-    manager = cBenchManager(path_flag, "a.out", cpucore=0)
-    manager_base = cBenchManager(path_base, "a.out", cpucore=0)
+    manager = cBenchManager(
+        path_flag,
+        "a.out",
+        cpucore=slot_first_core,
+        build_cpucore=slot_cores,
+    )
+    manager_base = cBenchManager(
+        path_base,
+        "a.out",
+        cpucore=slot_first_core,
+        build_cpucore=slot_cores,
+    )
 
     tier_heavy = ["security_rijndael_e"]
 
@@ -255,6 +291,22 @@ def tune_benchmark(benchmark):
     return result_lines
 
 
+def tune_worker(slot_id, benchmark_queue, all_results, errors):
+    while True:
+        item = benchmark_queue.get()
+        if item is None:
+            benchmark_queue.task_done()
+            break
+
+        index, benchmark = item
+        try:
+            all_results[index] = tune_benchmark(benchmark, slot_id)
+        except Exception as exc:
+            errors.append((benchmark, exc))
+        finally:
+            benchmark_queue.task_done()
+
+
 if __name__ == "__main__":
     budget = 2000
     benchmark_home = "/home/whq/dataset/cbench"
@@ -279,11 +331,38 @@ if __name__ == "__main__":
     with open("tuning_result.txt", "w") as ofp:
         ofp.write("=== Result ===\n")
 
-    with multiprocessing.Pool(processes=min(1, len(benchmark_list))) as pool:
-        all_results = pool.map(tune_benchmark, benchmark_list)
+    benchmark_queue = queue.Queue()
+    all_results = [None] * len(benchmark_list)
+    errors = []
+
+    for index, benchmark in enumerate(benchmark_list):
+        benchmark_queue.put((index, benchmark))
+
+    workers = []
+    for slot_id in range(NUM_SLOTS):
+        worker = threading.Thread(
+            target=tune_worker,
+            args=(slot_id, benchmark_queue, all_results, errors),
+            name=f"gcc-slot-{slot_id}",
+        )
+        worker.start()
+        workers.append(worker)
+
+    for _ in workers:
+        benchmark_queue.put(None)
+
+    benchmark_queue.join()
+    for worker in workers:
+        worker.join()
+
+    if errors:
+        benchmark, exc = errors[0]
+        raise RuntimeError(f"Tuning failed for {benchmark}") from exc
 
     # 汇总所有 benchmark 的结果
     with open("tuning_gcc_result.txt", "a") as ofp:
         for result in all_results:
+            if result is None:
+                continue
             for line in result:
                 ofp.write(line + "\n")
