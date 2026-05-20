@@ -1,0 +1,2 @@
+-fno-section-anchors
+-fno-inline-small-functions

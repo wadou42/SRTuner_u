@@ -119,16 +119,18 @@ class cBenchEvaluator(Evaluator):
         if self.retest_O3:
             return 1
         else:
-            return sum(self.manager_base.test(input_id=1) for _ in range(self.num_repeats)) / self.num_repeats
+            self.manager_base.build(" -g -O3")
+            return self.manager_base.test(input_id=1, num_repeats=self.num_repeats)
 
     def _init_opt_reducer(self):
         return OptReducer(
             manager = self.manager,
             constrains_file = self.constraints_file,
+            num_repeats=self.num_repeats,
             opt_file = "opts_list/gcc_O2_O3_others.txt",
             O3_perf = self.O3_perf,
             min_perf= self.O3_perf / 10,
-            max_perf= self.O3_perf * 1,
+            max_perf= self.O3_perf * 1.005,
             verbose = False,
             print_build_result = True,
         )
@@ -136,7 +138,7 @@ class cBenchEvaluator(Evaluator):
 
     def build(self, str_opt_setting):
         if self.retest_O3:
-            self.manager_base.build(" -g -O3")
+            self.manager_base.build(" -O3")
 
         return self.manager.build(str_opt_setting)
 
@@ -147,12 +149,13 @@ class cBenchEvaluator(Evaluator):
             for i in range(num_repeats):
                 flag_time += self.manager.test(input_id)
                 base_time += self.manager_base.test(input_id)
+            self.O3_perf = base_time / num_repeats
             perf = flag_time / base_time
             return perf
         if self.O3_perf is None:
-            self.O3_perf = sum(self.manager_base.test(input_id) for _ in range(num_repeats)) / num_repeats
+            self.O3_perf = self.manager_base.test(input_id=1, num_repeats=num_repeats)
         
-        flag_time = sum(self.manager.test(input_id) for _ in range(num_repeats)) / num_repeats
+        flag_time = self.manager.test(input_id, num_repeats=num_repeats)
 
         return flag_time / self.O3_perf
 
@@ -168,7 +171,7 @@ class cBenchEvaluator(Evaluator):
         perf = self.run(num_repeats, input_id=1)
         
         # If the performance is worse than O3, we consider it as a failed case and reduce the flags.
-        if perf > 1.0:
+        if perf > 1.005:
             self.optReducer.reduce_config_until_pass(flags)
             cost = self.optReducer.last_reduce_config_build_count
         print(f"Evaluated config: {flags}, perf: {perf:.3f}, cost: {cost}")
@@ -267,7 +270,7 @@ def _tune_benchmark(benchmark, slot_id):
     # else:
     #     assert False, f"Unknown benchmark tier: {benchmark}"
 
-    num_repeats = 20
+    num_repeats = 10
 
     evaluator = cBenchEvaluator(
         num_repeats=num_repeats,
@@ -327,6 +330,7 @@ if __name__ == "__main__":
     default_setting = {"stdOptLv": 3}
 
     os.makedirs("tune_result", exist_ok=True)
+    os.makedirs(os.path.join("tune_result", "logs"), exist_ok=True)
 
     with open("tuning_result.txt", "w") as ofp:
         ofp.write("=== Result ===\n")

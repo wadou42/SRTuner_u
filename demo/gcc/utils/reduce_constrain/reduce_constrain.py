@@ -1,6 +1,7 @@
 import random
 import argparse
 import os
+from functools import cache
 
 from utils.reduce_constrain.constrain_solver import ConstrainsSolver
 
@@ -10,7 +11,7 @@ class OptReducer:
         manager,
         constrains_file: str,
         opt_file: str,
-        num_repeats: int = 20,
+        num_repeats: int = 10,
         provided_configs: list[str] | None = None,
         random_config_count: int = 20,
         min_perf: float = 1e-3,
@@ -38,6 +39,7 @@ class OptReducer:
         self.print_build_result = print_build_result
         self.build_and_test_count = 0
         self.last_reduce_config_build_count = 0
+        self.max_reduce_count = 30
         self.optlist = self._load_opts()
 
     def _log(self, *args, **kwargs) -> None:
@@ -47,7 +49,7 @@ class OptReducer:
     def _format_build_result(self, opt_config: str, result: float | int) -> None:
         if self.print_build_result:
             print(
-                f"[build_and_test] flag: {opt_config} result: {result}",
+                f"[build_and_test] Total count: {self.build_and_test_count} flag: {opt_config} result: {result}",
                 flush=True,
             )
 
@@ -129,7 +131,10 @@ class OptReducer:
             configs.append("-O3 " + " ".join(bool_config) + " " + " ".join(enum_config)) # type: ignore
         return configs
 
+    @cache
     def build_and_test(self, opt_config: str) -> int:
+        if opt_config.strip() == "-g -O3":
+            return 0
         if self.manager is None:
             raise ValueError("Manager instance is not provided.")
 
@@ -156,7 +161,7 @@ class OptReducer:
         return 0
 
     def reduceFlags(self, optList):
-        max_reduce_rounds = 30
+        max_reduce_rounds = self.max_reduce_count
         reduce_rounds = 0
         level = optList[0]
         del optList[0]
@@ -208,7 +213,7 @@ class OptReducer:
         return optList
 
     def reduceMore(self, optList):
-        max_reduce_rounds = 30
+        max_reduce_rounds = self.max_reduce_count
         reduce_rounds = 0
         level = optList[0]
         del optList[0]
@@ -324,75 +329,74 @@ class OptReducer:
                     self._log(f"[run] Current pass ratio: {pass_ratio}", flush=True)
 
     def reduce_config_until_pass(self, config: str) -> None:
-        idx = 0
         start_build_and_test_count = self.build_and_test_count
         self.last_reduce_config_build_count = 0
-        while True:
-            self._log(f"[reduce_config_until_pass] {idx}-th opt", flush=True)
-            self._log(f"[reduce_config_until_pass] Original config: {config}", flush=True)
-            idx += 1
+        self._log(f"[reduce_config_until_pass] Original config: {config}", flush=True)
 
-            opt_dict = {}
-            for opt in config.split():
-                if opt in ["-O3", "-O2", "-O1", "-O0", "-g", "-others"]:
-                    opt_dict[opt] = True
-                    continue
-                assert self.opt_is_valid(opt), f"Option {opt} not recognized.{self.optlist}"
+        opt_dict = {}
+        for opt in config.split():
+            if opt in ["-O3", "-O2", "-O1", "-O0", "-g", "-others"]:
+                opt_dict[opt] = True
+                continue
+            assert self.opt_is_valid(opt), f"Option {opt} not recognized.{self.optlist}"
 
-                if (
-                    "=" not in opt
-                    and opt not in self.optlist
-                    and self.get_opt_negation(opt) in self.optlist
-                ):
-                    opt_dict[self.get_opt_negation(opt)] = False
-                else:
-                    opt_dict[opt] = True
+            if (
+                "=" not in opt
+                and opt not in self.optlist
+                and self.get_opt_negation(opt) in self.optlist
+            ):
+                opt_dict[self.get_opt_negation(opt)] = False
+            else:
+                opt_dict[opt] = True
 
-            c = ConstrainsSolver(constrains_file=self.constrains_file)
-            c.solve(opt_config=opt_dict)
+        c = ConstrainsSolver(constrains_file=self.constrains_file)
+        c.solve(opt_config=opt_dict)
 
-            processed_opt = " ".join(
-                [
-                    opt if opt_dict[opt] else self.get_opt_negation(opt)
-                    for opt in opt_dict
-                ]
+        processed_opt = " ".join(
+            [
+                opt if opt_dict[opt] else self.get_opt_negation(opt)
+                for opt in opt_dict
+            ]
+        )
+
+        self._log(
+            f"[reduce_config_until_pass] After constraint solving: {processed_opt}",
+            flush=True,
+        )
+        passed = self.build_and_test(opt_config=" -g " + processed_opt)
+        if passed == 0:
+            self.last_reduce_config_build_count = (
+                self.build_and_test_count - start_build_and_test_count
             )
-
+            self._log("[reduce_config_until_pass] pass", flush=True)
             self._log(
-                f"[reduce_config_until_pass] After constraint solving: {processed_opt}",
+                "[reduce_config_until_pass] total build_and_test count: "
+                f"{self.last_reduce_config_build_count}",
                 flush=True,
             )
-            passed = self.build_and_test(opt_config=" -g " + processed_opt)
-            if passed == 0:
-                self.last_reduce_config_build_count = (
-                    self.build_and_test_count - start_build_and_test_count
-                )
-                self._log("[reduce_config_until_pass] pass", flush=True)
-                self._log(
-                    "[reduce_config_until_pass] total build_and_test count: "
-                    f"{self.last_reduce_config_build_count}",
-                    flush=True,
-                )
-                return
+            return
 
-            opts = processed_opt.split(" ")
-            opts = self.reduceFlags(opts)
-            opts = self.reduceMore(opts)
-            self._log(
-                f"[reduce_config_until_pass] After reduction: {' '.join(opts)}",
-                flush=True,
+        opts = processed_opt.split(" ")
+        opts = self.reduceFlags(opts)
+        opts = self.reduceMore(opts)
+        self._log(
+            f"[reduce_config_until_pass] After reduction: {' '.join(opts)}",
+            flush=True,
+        )
+
+        if len(opts) > 1:
+            result = (
+                " ".join(opts)
+                .replace("-O3", "")
+                .replace("-O2", "")
+                .replace("-O1", "")
+                .replace("-O0", "")
             )
-
-            if len(opts) > 1:
-                result = (
-                    " ".join(opts)
-                    .replace("-O3", "")
-                    .replace("-O2", "")
-                    .replace("-O1", "")
-                    .replace("-O0", "")
-                )
-                with open(self.constrains_file, "a") as fc:
-                    fc.write(result.strip() + "\n")
+            with open(self.constrains_file, "a") as fc:
+                fc.write(result.strip() + "\n")
+        self.last_reduce_config_build_count = (
+            self.build_and_test_count - start_build_and_test_count
+        )
 
 
 """
