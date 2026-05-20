@@ -4,7 +4,6 @@ import subprocess
 from pathlib import Path
 import time
 
-from utils.line_level_analysis import LineAnalysis
 FLOAT_MAX = float('inf')
 
 class cBenchManager:
@@ -14,10 +13,11 @@ class cBenchManager:
         self.benchmarks = []
         self.cpucore = cpucore
         
-    def build(self, str_opt_setting):
+    def build(self, opt_config):
+        self.clean()
         commands = f"""cd {self.path};
         taskset -c {self.cpucore} make clean > /dev/null 2>/dev/null;
-        taskset -c {self.cpucore} make -j2 CCC_OPTS_ADD="{str_opt_setting}" LD_OPTS=" -o {self.artifact} -fopenmp" > /dev/null 2>/dev/null;
+        taskset -c {self.cpucore} make -j2 CCC_OPTS_ADD="{opt_config}" LD_OPTS=" -o {self.artifact} -fopenmp" > /dev/null 2>/dev/null;
         """
         subprocess.Popen(commands, stdout=subprocess.PIPE, shell=True).wait()
 
@@ -28,27 +28,27 @@ class cBenchManager:
         return 0
     
 
-    def test(self, input_id=1):
+    def test(self, input_id=1, num_repeats=1):
         run_commands = f"""cd {self.path};
         taskset -c {self.cpucore} ./_ccc_check_output.clean ;
         taskset -c {self.cpucore} ./__run {input_id} 2>&1;
         """
 
         tot = 0
+        for _ in range(num_repeats):
+            # Run the executable
+            p = subprocess.Popen(run_commands, stdout=subprocess.PIPE, shell=True)
+            p.wait()
+            stdouts = p.stdout.read().decode('ascii').split("\n")
 
-        # Run the executable
-        p = subprocess.Popen(run_commands, stdout=subprocess.PIPE, shell=True)
-        p.wait()
-        stdouts = p.stdout.read().decode('ascii').split("\n")
-
-        for out in stdouts:
-            if out.startswith("real"):
-                out = out.replace("real\t", "")
-                nums = re.findall("\d*\.?\d+", out)
-                assert len(nums) == 2, "Expect %dm %ds format"
-                secs = float(nums[0])*60+float(nums[1])
-                tot += secs
-        return tot
+            for out in stdouts:
+                if out.startswith("real"):
+                    out = out.replace("real\t", "")
+                    nums = re.findall("\d*\.?\d+", out)
+                    assert len(nums) == 2, "Expect %dm %ds format"
+                    secs = float(nums[0])*60+float(nums[1])
+                    tot += secs
+        return tot / num_repeats
 
     def clean(self):
         commands = f"""cd {self.path};

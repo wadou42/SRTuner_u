@@ -7,8 +7,7 @@ class FlagInfo:
         self.configs = configs
 
 class Evaluator:
-    def __init__(self, path, num_repeats):
-        self.path = path
+    def __init__(self, num_repeats):
         self.num_repeats = num_repeats
     
     def build(self):
@@ -30,7 +29,7 @@ class Tuner:
         self.evaluator = evaluator
         self.name = name
         self.default_setting = default_setting
-        self.default_perf = evaluator.evaluate(default_setting)
+        self.default_perf = evaluator.evaluate(default_setting)[1]
         self.visited = set()
 
         print(f"default_perf : {self.default_perf:.3f}")
@@ -50,9 +49,11 @@ class Tuner:
         i = 0
         while i<budget:
             candidates = self.generate_candidates(batch_size=batch_size)
-            perfs = self.evaluate_candidates(candidates)
+            results = self.evaluate_candidates(candidates)
 
-            i += len(candidates)
+            cost = sum([result[0] for result in results])
+            perfs = [result[1] for result in results]
+            i += cost
             for opt_setting, perf in zip(candidates, perfs):
                 if perf < best_perf:
                     best_perf = perf

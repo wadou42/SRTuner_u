@@ -5,8 +5,8 @@ import multiprocessing
 from tuner import FlagInfo, Evaluator, FLOAT_MAX
 from tuner import RandomTuner, SRTuner
 from manager.cBench_manager import cBenchManager
-from utils.constrain_solver import ConstrainsSolver
-
+from utils.reduce_constrain.constrain_solver import ConstrainsSolver
+from utils.reduce_constrain.reduce_constrain import OptReducer
 
 # Define GCC flags
 class GCCFlagInfo(FlagInfo):
@@ -61,11 +61,12 @@ def read_gcc_opts(path):
     return search_space
 
 
-def convert_to_str(opt_setting, search_space):
-    c = ConstrainsSolver(constrains_file="constrains/cbench.txt")
-    c.solve(opt_config=opt_setting)
+def convert_to_str(opt_setting, search_space, constrains_file=None):
+    if constrains_file is not None:
+        c = ConstrainsSolver(constrains_file="constrains/cbench.txt")
+        c.solve(opt_config=opt_setting)
 
-    str_opt_setting = " -O" + str(opt_setting["stdOptLv"])
+    # str_opt_setting = " -O" + str(opt_setting["stdOptLv"])
     str_opt_setting = " -O3 "
     for flag_name, config in opt_setting.items():
         assert flag_name in search_space
@@ -89,93 +90,100 @@ def convert_to_str(opt_setting, search_space):
 class cBenchEvaluator(Evaluator):
     def __init__(
         self,
-        path,
         num_repeats,
         search_space,
         manager,
-        manager_base=None,
-        enable_gperftools=False,
+        manager_base,
+        constraints_file,
         artifact="a.out",
-        result_file="report.json",
+        retest_O3=False,
     ):
-        super().__init__(path, num_repeats)
+        super().__init__(num_repeats)
         self.artifact = artifact
         self.manager = manager
         self.manager_base = manager_base
-        self.enable_gperftools = enable_gperftools
+        self.constraints_file = constraints_file
+        
         self.search_space = search_space
-        self.result_file = result_file
+        self.retest_O3 = retest_O3
+        self.O3_perf = self._init_o3_perf()
+        self.optReducer:OptReducer = self._init_opt_reducer()
+
+    def _init_o3_perf(self):
+        if self.retest_O3:
+            return 1
+        else:
+            return sum(self.manager_base.test(input_id=1) for _ in range(self.num_repeats)) / self.num_repeats
+
+    def _init_opt_reducer(self):
+        return OptReducer(
+            manager = self.manager,
+            constrains_file = self.constraints_file,
+            opt_file = "opts_list/gcc_O2_O3_others.txt",
+            O3_perf = self.O3_perf,
+            min_perf= self.O3_perf / 10,
+            max_perf= self.O3_perf * 1,
+            verbose = False,
+            print_build_result = True,
+        )
+
 
     def build(self, str_opt_setting):
-        info = self.manager.build(" -g" + str_opt_setting)
-        if info == -1:
-            return -1
-        self.manager_base.build(" -g -O3")
-        return 0
+        if self.retest_O3:
+            self.manager_base.build(" -g -O3")
+
+        return self.manager.build(str_opt_setting)
 
     def run(self, num_repeats, input_id=1):
-        flag_time = 0
-        base_time = 0
-        for i in range(num_repeats):
-            flag_time += self.manager.test(input_id)
-            base_time += self.manager_base.test(input_id)
-        return flag_time / base_time
+        if self.retest_O3:
+            flag_time = 0
+            base_time = 0
+            for i in range(num_repeats):
+                flag_time += self.manager.test(input_id)
+                base_time += self.manager_base.test(input_id)
+            perf = flag_time / base_time
+            return perf
+        if self.O3_perf is None:
+            self.O3_perf = sum(self.manager_base.test(input_id) for _ in range(num_repeats)) / num_repeats
+        
+        flag_time = sum(self.manager.test(input_id) for _ in range(num_repeats)) / num_repeats
+
+        return flag_time / self.O3_perf
 
     def evaluate(self, opt_setting, num_repeats=-1):
-        flags = convert_to_str(opt_setting, self.search_space)
-        if "-O3" in flags and len(flags) < 20:
-            return 1
+        cost = 1
+        flags = convert_to_str(opt_setting, self.search_space, self.constraints_file)
         error = self.build(flags)
         if error == -1:
             return FLOAT_MAX
 
         if num_repeats == -1:
             num_repeats = self.num_repeats
-
         perf = self.run(num_repeats, input_id=1)
-
-        report_infos = cBenchManager.analysis_report(self.manager, self.manager_base)
-        with open(self.result_file, "a") as f:
-            for report_info in report_infos:
-                data = {
-                    "file_path": report_info[0],
-                    "function_name": report_info[1],
-                    "begin_line": report_info[2],
-                    "end_line": report_info[3],
-                    "opt_setting": opt_setting,
-                    "self_time": report_info[4],
-                    "self_total_time": report_info[5],
-                    "O3_self_time": report_info[6],
-                    "O3_total_time": report_info[7],
-                    "perf": perf,
-                }
-                # print(data)
-                f.write(json.dumps(data) + "\n")
-
+        
+        # If the performance is worse than O3, we consider it as a failed case and reduce the flags.
+        if perf > 1.0:
+            self.optReducer.reduce_config_until_pass(flags)
+            cost = self.optReducer.last_reduce_config_build_count
+        print(f"Evaluated config: {flags}, perf: {perf:.3f}, cost: {cost}")
         self.clean()
-        return perf
+        return (cost, perf)
 
     def clean(self):
         self.manager.clean()
-        self.manager_base.clean()
+        if self.retest_O3:
+            self.manager_base.clean()
 
 
 def tune_benchmark(benchmark):
-    path_flag = os.path.join(benchmark_home, "cBench", benchmark, "src")
-    path_base = os.path.join(benchmark_home, "cBenchO3", benchmark, "src")
-
-    worker_id = 32 + multiprocessing.current_process()._identity[0]
-
-    total_cores = multiprocessing.cpu_count()
-    assigned_core = worker_id % total_cores
+    path_flag = os.path.join(benchmark_home, "cBench-instance0", benchmark, "src")
+    path_base = os.path.join(benchmark_home, "cBench-instance1", benchmark, "src")
 
     path_flag = os.path.join(benchmark_home, "cbench-instance0", benchmark, "src")
     path_base = os.path.join(benchmark_home, "cbench-instance1", benchmark, "src")
 
-    manager = cBenchManager(path_flag, "a.out", cpucore=assigned_core)
-    manager_base = cBenchManager(path_base, "a.out", cpucore=assigned_core)
-
-    result_file = os.path.join("tune_result", f"{benchmark}.jsonl")
+    manager = cBenchManager(path_flag, "a.out", cpucore=0)
+    manager_base = cBenchManager(path_base, "a.out", cpucore=0)
 
     tier_heavy = ["security_rijndael_e"]
 
@@ -212,23 +220,25 @@ def tune_benchmark(benchmark):
         "network_dijkstra",
     ]
 
-    if benchmark in tier_heavy:
-        num_repeats = 10
-    elif benchmark in tier_medium_heavy:
-        num_repeats = 15
-    elif benchmark in tier_medium:
-        num_repeats = 24
-    elif benchmark in tier_light:
-        num_repeats = 30
-    else:
-        assert False, f"Unknown benchmark tier: {benchmark}"
+    # if benchmark in tier_heavy:
+    #     num_repeats = 10
+    # elif benchmark in tier_medium_heavy:
+    #     num_repeats = 15
+    # elif benchmark in tier_medium:
+    #     num_repeats = 24
+    # elif benchmark in tier_light:
+    #     num_repeats = 30
+    # else:
+    #     assert False, f"Unknown benchmark tier: {benchmark}"
+
+    num_repeats = 20
+
     evaluator = cBenchEvaluator(
-        path=None,
         num_repeats=num_repeats,
+        search_space=search_space,
         manager=manager,
         manager_base=manager_base,
-        search_space=search_space,
-        result_file=result_file,
+        constraints_file=f"constrains/{benchmark}_constrains.txt",
     )
 
     result_lines = []
@@ -247,11 +257,12 @@ def tune_benchmark(benchmark):
 
 if __name__ == "__main__":
     budget = 2000
-    benchmark_home = "/home/whq/dataset/cBench"
+    benchmark_home = "/home/whq/dataset/cbench"
     benchmark_list = [
+        "network_dijkstra",
             "automotive_bitcount", "consumer_tiff2bw", "automotive_susan_e", "consumer_tiffdither",
             "automotive_susan_c",
-            "consumer_tiffmedian", "automotive_susan_s", "network_dijkstra", "consumer_tiff2rgba", "network_patricia",
+            "consumer_tiffmedian", "automotive_susan_s",  "consumer_tiff2rgba", "network_patricia",
             "consumer_jpeg_c", "security_rijndael_d", "office_rsynth", "security_rijndael_e", "security_sha",
             "office_stringsearch1", "bzip2e", "security_blowfish_d", "telecom_adpcm_c", "security_blowfish_e", "bzip2d",
             "telecom_adpcm_d", "consumer_jpeg_d", "telecom_CRC32", "consumer_lame", "telecom_gsm", "consumer_mad",
@@ -268,11 +279,11 @@ if __name__ == "__main__":
     with open("tuning_result.txt", "w") as ofp:
         ofp.write("=== Result ===\n")
 
-    with multiprocessing.Pool(processes=min(32, len(benchmark_list))) as pool:
+    with multiprocessing.Pool(processes=min(1, len(benchmark_list))) as pool:
         all_results = pool.map(tune_benchmark, benchmark_list)
 
     # 汇总所有 benchmark 的结果
-    with open("tuning_gcc_with_ofast_result.txt", "a") as ofp:
+    with open("tuning_gcc_result.txt", "a") as ofp:
         for result in all_results:
             for line in result:
                 ofp.write(line + "\n")

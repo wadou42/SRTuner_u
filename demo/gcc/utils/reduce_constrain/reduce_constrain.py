@@ -2,16 +2,15 @@ import random
 import argparse
 import os
 
-from managers.manager import Manager
-from reduce_constrains.constrain_solver import ConstrainsSolver
-
+from utils.reduce_constrain.constrain_solver import ConstrainsSolver
 
 class OptReducer:
     def __init__(
         self,
-        manager: Manager,
+        manager,
         constrains_file: str,
         opt_file: str,
+        num_repeats: int = 20,
         provided_configs: list[str] | None = None,
         random_config_count: int = 20,
         min_perf: float = 1e-3,
@@ -19,10 +18,14 @@ class OptReducer:
         pass_ratio: float = 0.9,
         run_tests: bool = True,
         invert_perf_result: bool = False,
+        O3_perf: float | None = None,
+        verbose: bool = True,
+        print_build_result: bool = False,
     ):
         self.manager = manager
         self.constrains_file = constrains_file
         self.opt_file = opt_file
+        self.num_repeats = num_repeats
         self.provided_configs = provided_configs
         self.random_config_count = random_config_count
         self.min_perf = min_perf
@@ -30,7 +33,23 @@ class OptReducer:
         self.pass_ratio = pass_ratio
         self.run_tests = run_tests
         self.invert_perf_result = invert_perf_result
+        self.O3_perf = O3_perf
+        self.verbose = verbose
+        self.print_build_result = print_build_result
+        self.build_and_test_count = 0
+        self.last_reduce_config_build_count = 0
         self.optlist = self._load_opts()
+
+    def _log(self, *args, **kwargs) -> None:
+        if self.verbose:
+            print(*args, **kwargs)
+
+    def _format_build_result(self, opt_config: str, result: float | int) -> None:
+        if self.print_build_result:
+            print(
+                f"[build_and_test] flag: {opt_config} result: {result}",
+                flush=True,
+            )
 
     def _load_opts(self):
         with open(self.opt_file, "r") as f:
@@ -114,17 +133,26 @@ class OptReducer:
         if self.manager is None:
             raise ValueError("Manager instance is not provided.")
 
+        self.build_and_test_count += 1
         passed = self.manager.build(opt_config=opt_config)
         if passed != 0:
+            self._format_build_result(opt_config, -1)
             return -1
 
         if self.run_tests:
-            perf = self.manager.test()
+            perf = self.manager.test(num_repeats=self.num_repeats)
+            if self.print_build_result and self.O3_perf is not None:
+                assert self.O3_perf > 0, "O3_perf must be greater than 0 if provided."
+                self._format_build_result(opt_config, perf / self.O3_perf)
+            else:
+                self._format_build_result(opt_config, perf)
             perf_in_range = (self.min_perf <= perf <= self.max_perf)
             if self.invert_perf_result:
                 perf_in_range = not perf_in_range
             if not perf_in_range:
                 return -1
+        else:
+            self._format_build_result(opt_config, 0)
         return 0
 
     def reduceFlags(self, optList):
@@ -136,7 +164,7 @@ class OptReducer:
         end = len(optList) if start + step > len(optList) else start + step
         while step >= 1:
             while start < len(optList):
-                print(
+                self._log(
                     "[reduceFlags] [len="
                     + str(len(optList))
                     + ", s="
@@ -148,18 +176,18 @@ class OptReducer:
                     + "]",
                     flush=True,
                 )
-                print(optList)
+                self._log(optList)
 
                 tmpOpt = optList[:start] + optList[end:]
                 passed = self.build_and_test(
                     opt_config=" -g " + level + " " + " ".join(tmpOpt)
                 )
                 if passed != 0:
-                    print("[reduceFlags] failed")
+                    self._log("[reduceFlags] failed")
                     optList = tmpOpt[:]
                     end = len(optList) if start + step > len(optList) else start + step
                 else:
-                    print("[reduceFlags] pass")
+                    self._log("[reduceFlags] pass")
                     start = end
                     end = len(optList) if start + step > len(optList) else start + step
             start = 0
@@ -174,8 +202,8 @@ class OptReducer:
         del optList[0]
         inx = 0
         while inx < len(optList):
-            print("[len=" + str(len(optList)) + ", inx=" + str(inx) + "]")
-            print(optList)
+            self._log("[len=" + str(len(optList)) + ", inx=" + str(inx) + "]")
+            self._log(optList)
 
             tmpOpt = optList[:inx] + optList[inx + 1 :]
 
@@ -183,10 +211,10 @@ class OptReducer:
                 opt_config=" -g " + level + " " + " ".join(tmpOpt)
             )
             if passed != 0:
-                print("[reduceMore] failed")
+                self._log("[reduceMore] failed")
                 optList = tmpOpt[:]
             else:
-                print("[reduceMore] pass")
+                self._log("[reduceMore] pass")
                 inx += 1
         optList.insert(0, level)
         return optList
@@ -213,8 +241,8 @@ class OptReducer:
         while pass_ratio < self.pass_ratio:
             opt_configs = self.random_opts()
             for config in opt_configs:
-                print(f"[main] {idx}-th opt", flush=True)
-                print(f"[run] Original config: {config}", flush=True)
+                self._log(f"[main] {idx}-th opt", flush=True)
+                self._log(f"[run] Original config: {config}", flush=True)
 
                 idx += 1
                 opt_dict = {}
@@ -243,14 +271,14 @@ class OptReducer:
                     ]
                 )
 
-                print(f"[run] After constraint solving: {processed_opt}", flush=True)
+                self._log(f"[run] After constraint solving: {processed_opt}", flush=True)
                 passed = self.build_and_test(opt_config=" -g " + processed_opt)
 
                 if passed == 0:
                     results.append(1)
                     results = results[-10:]
                     pass_ratio = sum(results) / len(results)
-                    print(f"[run] Current pass ratio: {pass_ratio}", flush=True)
+                    self._log(f"[run] Current pass ratio: {pass_ratio}", flush=True)
                     continue
 
                 results.append(0)
@@ -258,7 +286,7 @@ class OptReducer:
                 o = processed_opt.split(" ")
                 o = self.reduceFlags(o)
                 o = self.reduceMore(o)
-                print(f"[run] After reduction: {' '.join(o)}", flush=True)
+                self._log(f"[run] After reduction: {' '.join(o)}", flush=True)
                 result = " ".join(o)
                 if len(o) > 1:
                     result = (
@@ -273,13 +301,15 @@ class OptReducer:
                 if len(results) >= 10:
                     results = results[-10:]
                     pass_ratio = sum(results) / len(results)
-                    print(f"[run] Current pass ratio: {pass_ratio}", flush=True)
+                    self._log(f"[run] Current pass ratio: {pass_ratio}", flush=True)
 
     def reduce_config_until_pass(self, config: str) -> None:
         idx = 0
+        start_build_and_test_count = self.build_and_test_count
+        self.last_reduce_config_build_count = 0
         while True:
-            print(f"[reduce_config_until_pass] {idx}-th opt", flush=True)
-            print(f"[reduce_config_until_pass] Original config: {config}", flush=True)
+            self._log(f"[reduce_config_until_pass] {idx}-th opt", flush=True)
+            self._log(f"[reduce_config_until_pass] Original config: {config}", flush=True)
             idx += 1
 
             opt_dict = {}
@@ -308,19 +338,27 @@ class OptReducer:
                 ]
             )
 
-            print(
+            self._log(
                 f"[reduce_config_until_pass] After constraint solving: {processed_opt}",
                 flush=True,
             )
             passed = self.build_and_test(opt_config=" -g " + processed_opt)
             if passed == 0:
-                print("[reduce_config_until_pass] pass", flush=True)
+                self.last_reduce_config_build_count = (
+                    self.build_and_test_count - start_build_and_test_count
+                )
+                self._log("[reduce_config_until_pass] pass", flush=True)
+                self._log(
+                    "[reduce_config_until_pass] total build_and_test count: "
+                    f"{self.last_reduce_config_build_count}",
+                    flush=True,
+                )
                 return
 
             opts = processed_opt.split(" ")
             opts = self.reduceFlags(opts)
             opts = self.reduceMore(opts)
-            print(
+            self._log(
                 f"[reduce_config_until_pass] After reduction: {' '.join(opts)}",
                 flush=True,
             )
