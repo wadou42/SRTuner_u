@@ -1,0 +1,136 @@
+led / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Python packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.conda/
+
+# Conda
+conda-meta/
+*.conda
+*.tar.bz2
+
+# pipenv / poetry / pdm
+Pipfile.lock
+poetry.lock
+pdm.lock
+.pdm.toml
+# 如果你希望锁定依赖版本，通常不要忽略 lock 文件；上面几行可按项目习惯删除。
+
+# Test / coverage
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+.nox/
+.tox/
+htmlcov/
+.coverage
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Type checkers / linters
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# Data / outputs
+data/
+datasets/
+outputs/
+output/
+results/
+runs/
+tmp/
+temp/
+
+# Models / checkpoints
+models/
+saved_models/
+checkpoints/
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.pkl
+*.joblib
+
+# Profiling / benchmark artifacts
+.prof
+*.prof
+*.lprof
+
+# C/C++ build artifacts, useful if Python project has extensions
+*.o
+*.a
+*.dll
+*.dylib
+*.so
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+Makefile
+
+*.bak
+tmp*
+*tmp
+tune_result/

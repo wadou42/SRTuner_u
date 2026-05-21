@@ -69,7 +69,7 @@ def read_gcc_opts(path):
 
 def convert_to_str(opt_setting, search_space, constrains_file=None):
     if constrains_file is not None:
-        c = ConstrainsSolver(constrains_file="constrains/cbench.txt")
+        c = ConstrainsSolver(constrains_file=constrains_file)
         c.solve(opt_config=opt_setting)
 
     # str_opt_setting = " -O" + str(opt_setting["stdOptLv"])
@@ -159,19 +159,19 @@ class cBenchEvaluator(Evaluator):
 
         return flag_time / self.O3_perf
 
-    def evaluate(self, opt_setting, num_repeats=-1):
+    def evaluate(self, opt_setting, num_repeats=-1)->tuple[int, float]:
         cost = 1
         flags = convert_to_str(opt_setting, self.search_space, self.constraints_file)
         error = self.build(flags)
         if error == -1:
-            return FLOAT_MAX
+            return (cost, FLOAT_MAX)
 
         if num_repeats == -1:
             num_repeats = self.num_repeats
         perf = self.run(num_repeats, input_id=1)
         
         # If the performance is worse than O3, we consider it as a failed case and reduce the flags.
-        if perf > 1.005:
+        if perf > 1.03:
             self.optReducer.reduce_config_until_pass(flags)
             cost = self.optReducer.last_reduce_config_build_count
         print(f"Evaluated config: {flags}, perf: {perf:.3f}, cost: {cost}")
@@ -285,7 +285,7 @@ def _tune_benchmark(benchmark, slot_id):
         best_opt_setting, best_perf = tuner.tune(budget)
         if best_opt_setting is not None:
             default_perf = tuner.default_perf
-            best_perf = evaluator.evaluate(best_opt_setting)
+            best_perf = evaluator.evaluate(best_opt_setting)[1]
             line = f"Tuning {benchmark} w/ {tuner.name}: {default_perf:.3f}/{best_perf:.3f} = {default_perf/best_perf:.3f}x"
             print(line)
             with open(f"tune_result/{benchmark}_result.txt", "a") as ofp:
@@ -311,16 +311,17 @@ def tune_worker(slot_id, benchmark_queue, all_results, errors):
 
 
 if __name__ == "__main__":
-    budget = 2000
+    budget = 1000
     benchmark_home = "/home/whq/dataset/cbench"
     benchmark_list = [
-        "network_dijkstra",
-            "automotive_bitcount", "consumer_tiff2bw", "automotive_susan_e", "consumer_tiffdither",
-            "automotive_susan_c",
+            "consumer_jpeg_d","security_sha","automotive_susan_e","consumer_lame","consumer_mad",
+            "security_rijndael_d","automotive_susan_c", "telecom_adpcm_d", "security_blowfish_d",
+            "telecom_adpcm_c", "network_dijkstra", "telecom_CRC32",
+            "automotive_bitcount", "consumer_tiff2bw",  "consumer_tiffdither",
             "consumer_tiffmedian", "automotive_susan_s",  "consumer_tiff2rgba", "network_patricia",
-            "consumer_jpeg_c", "security_rijndael_d", "office_rsynth", "security_rijndael_e", "security_sha",
-            "office_stringsearch1", "bzip2e", "security_blowfish_d", "telecom_adpcm_c", "security_blowfish_e", "bzip2d",
-            "telecom_adpcm_d", "consumer_jpeg_d", "telecom_CRC32", "consumer_lame", "telecom_gsm", "consumer_mad",
+            "consumer_jpeg_c",  "office_rsynth", "security_rijndael_e",
+            "office_stringsearch1", "bzip2e",   "security_blowfish_e", "bzip2d",
+               "telecom_gsm",
             "automotive_qsort1"
         ]
     
